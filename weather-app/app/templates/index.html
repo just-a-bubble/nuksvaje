@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vremenska aplikacija</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #bad4d9; /* barva ozadja */
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+    
+        input, button {
+            margin: 5px;
+            padding: 5px;
+        }
+    
+        #result {
+            margin-top: 20px;
+        }
+    </style>   
+</head>
+<body>
+    <h1>Vremenska aplikacija</h1>
+
+    <p>Zadnja iskana mesta: <span id="recentCities"></span></p>
+
+    <input type="text" id="cityInput" placeholder="Vnesi mesto">
+    <button onclick="getWeather()">Trenutno vreme</button>
+    <button onclick="getForecast()">5-dnevna napoved</button>
+
+    <pre id="result"></pre>
+
+    <script>
+        function kelvinToCelsius(k) {
+            return Math.round(k - 273.15);
+        }
+    
+        function renderCurrentWeather(data) {
+            const sunrise = new Date(data.sys.sunrise * 1000); /* ura v lokalnem času !!!!*/
+            const sunset = new Date(data.sys.sunset * 1000);
+
+            const formatTime = (date) => {
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            };
+
+            const html = `
+                <div>
+                    <h2>Trenutno vreme v ${data.name}, ${data.sys.country}</h2>
+
+                    <div style="display: flex; justify-content: space-between;">
+                        <p><strong>Opis:</strong> ${data.weather[0].description}</p>
+                        <p style="margin-right: 1120px;"><strong>Vzhod:</strong> ${formatTime(sunrise)}</p>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between;">
+                        <p><strong>Temperatura:</strong> ${data.main.temp} °C</p>
+                        <p style="margin-right: 1120px;"><strong>Zahod:</strong> ${formatTime(sunset)}</p>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <p><strong>Vlažnost:</strong> ${data.main.humidity}%</p>
+                        <img src="https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png" style="width: 60px; height: 60px; margin-right: 1220px;">
+                    </div>
+
+                    <p><strong>Veter:</strong> ${data.wind.speed} m/s</p>
+                </div>
+            `;
+
+            document.getElementById("result").innerHTML = html;
+        }
+
+    
+        async function getWeather() {
+            const city = document.getElementById("cityInput").value;
+            const res = await fetch(`/api/current?city=${city}`);
+            const data = await res.json();
+            renderCurrentWeather(data);
+            
+        }
+    
+        async function getForecast() {
+            const city = document.getElementById("cityInput").value;
+            const res = await fetch(`/api/forecast?city=${city}`);
+            const data = await res.json();
+            renderForecast(data);
+            
+        }
+    
+        function renderForecast(data) {
+            let html = `<h2>5-dnevna napoved za ${data.city.name}, ${data.city.country}</h2>`;
+            html += '<div style="display: flex; flex-wrap: wrap;">';
+
+            const dailyEntries = data.list.filter(e => e.dt_txt.includes("12:00:00")).slice(0, 5);
+
+            for (const entry of dailyEntries) {
+                const date = entry.dt_txt.split(" ")[0];
+
+                html += `
+                    <div style="border: 1px solid #000000; margin: 10px; padding: 10px; width: 180px; height: auto; position: relative; box-sizing: border-box;">
+                        <div style="display: flex; align-items: flex-start;">
+                            <img src="https://openweathermap.org/img/wn/${entry.weather[0].icon}@2x.png"
+                                style="width: 50px; height: 50px; margin-right: 10px;">
+                            <p><strong>${date}</strong></p>
+                        </div>
+                        <div>
+                            <p style="margin: 5px 0;">${entry.weather[0].description}</p>
+                            <p style="margin: 5px 0;">Temp: ${entry.main.temp} °C</p>
+                            <p style="margin: 5px 0;">Veter: ${entry.wind.speed} m/s</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            document.getElementById("result").innerHTML = html;
+        }
+
+
+
+    
+        async function updateRecentCities() {
+        const res = await fetch('/api/last-cities');
+        const cities = await res.json();
+
+        const container = document.getElementById("recentCities");
+        container.innerHTML = cities.map(city => `<strong>${city}</strong>`).join(", ");
+        }
+
+        async function getWeather() {
+            const city = document.getElementById("cityInput").value;
+            const res = await fetch(`/api/current?city=${city}`);
+            const data = await res.json();
+            renderCurrentWeather(data);
+            updateRecentCities(); // <-- posodobi zadnja mesta
+        }
+
+        async function getForecast() {
+            const city = document.getElementById("cityInput").value;
+            const res = await fetch(`/api/forecast?city=${city}`);
+            const data = await res.json();
+            renderForecast(data);
+            updateRecentCities(); // <-- posodobi zadnja mesta
+        }
+
+        // Posodobi takoj, ko se stran naloži
+        window.onload = () => {
+            updateRecentCities();
+        };
+    </script>
+    
+</body>
+</html>
